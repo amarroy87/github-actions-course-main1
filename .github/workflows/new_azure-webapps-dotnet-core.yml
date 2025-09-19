@@ -1,4 +1,4 @@
-name: Provision Azure WebApp using ARM
+name: Provision Azure WebApp using ARM 
 
 on:
   workflow_dispatch:
