@@ -1,71 +1,26 @@
-name: Build and deploy ASP.Net Core app to an Azure Web App
-
-env:
-  AZURE_WEBAPP_NAME: appservice-enis    # your Azure Web App name
-  AZURE_WEBAPP_PACKAGE_PATH: '.'        # path to your web app project, defaults to repository root
-  DOTNET_VERSION: '6.0.x'               # use .NET 6 (LTS, works with ubuntu-latest)
+name: Provision Azure WebApp using ARM
 
 on:
-  push:
-    branches: [ "main" ]
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 jobs:
-  build:
+  provision:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Set up dependency caching for faster builds
-        uses: actions/cache@v3
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-nuget-
-
-      - name: Build with dotnet
-        run: dotnet build --configuration Release
-
-      - name: dotnet publish
-        run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
-
-      - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v4
-        with:
-          name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    environment:
-      name: 'Development'
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
-
-    steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: .net-app
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       - name: Azure Login
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}   # JSON secret from az ad sp create-for-rbac
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy to Azure Web App
-        id: deploy-to-webapp
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: .
+      - name: Create Resource Group
+        run: az group create --name github-action-rg --location canadacentral
+
+      - name: Create App Service Plan
+        run: az appservice plan create --name myPlan --resource-group github-action-rg --sku B1 --is-linux
+
+      - name: Create WebApp
+        run: az webapp create --resource-group github-action-rg --plan myPlan --name appservice-enis --runtime "DOTNETCORE|6.0"
