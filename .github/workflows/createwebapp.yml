@@ -1,36 +1,15 @@
-name: Create Azure WebApp and Deploy
+name: Provision Azure WebApp using ARM
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ "main" ]
-
-env:
-  RESOURCE_GROUP: github-action-rg
-  LOCATION: canadacentral
-  PLAN_NAME: myPlan
-  WEBAPP_NAME: appservice-enis
-  DOTNET_VERSION: '6.0.x'
-  PROJECT_PATH: 'MyWebApp/MyWebApp.csproj'   # update this path to your csproj file
 
 jobs:
-  build-deploy:
+  provision:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v4
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Build
-        run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release
-
-      - name: Publish
-        run: dotnet publish ${{ env.PROJECT_PATH }} -c Release -o publish_output
 
       - name: Azure Login
         uses: azure/login@v1
@@ -38,16 +17,10 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Create Resource Group
-        run: az group create --name ${{ env.RESOURCE_GROUP }} --location ${{ env.LOCATION }}
+        run: az group create --name github-action-rg --location canadacentral
 
       - name: Create App Service Plan
-        run: az appservice plan create --name ${{ env.PLAN_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --sku B1 --is-linux
+        run: az appservice plan create --name myPlan --resource-group github-action-rg --sku B1 --is-linux
 
       - name: Create WebApp
-        run: az webapp create --resource-group ${{ env.RESOURCE_GROUP }} --plan ${{ env.PLAN_NAME }} --name ${{ env.WEBAPP_NAME }} --runtime "DOTNETCORE|6.0"
-
-      - name: Deploy to Azure WebApp
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: ${{ env.WEBAPP_NAME }}
-          package: ./publish_output
+        run: az webapp create --resource-group github-action-rg --plan myPlan --name appservice-enis --runtime "DOTNETCORE|6.0"
