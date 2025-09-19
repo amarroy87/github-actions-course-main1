@@ -1,0 +1,52 @@
+name: Create Linux VM
+
+on:
+  workflow_dispatch:   # Manual trigger
+  push:
+    branches:
+      - main
+
+jobs:
+  create-vm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # Login to Azure using Service Principal
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Create Resource Group
+      - name: Create Resource Group
+        run: |
+          az group create \
+            --name myResourceGroup \
+            --location eastus
+
+      # Create Linux VM (let Azure CLI auto-create network resources)
+      - name: Create Linux VM
+        run: |
+          az vm create \
+            --resource-group myResourceGroup \
+            --name myLinuxVM-${{ github.run_id }} \
+            --image Ubuntu2204 \
+            --admin-username azureuser \
+            --generate-ssh-keys \
+            --authentication-type ssh \
+            --location eastus \
+            --public-ip-sku Standard \
+            --only-show-errors
+
+      # Output Public IP
+      - name: Get VM Public IP
+        run: |
+          az vm show \
+            --resource-group myResourceGroup \
+            --name myLinuxVM-${{ github.run_id }} \
+            --show-details \
+            --query publicIps \
+            --output tsv
